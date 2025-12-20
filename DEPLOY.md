@@ -82,3 +82,4 @@ O Vercel fará deploy automático! 🎉
 2. Adicione seu domínio
 3. Configure o DNS conforme as instruções
 
+

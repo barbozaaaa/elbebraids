@@ -59,3 +59,4 @@ export function getServicoPorId(id: string): Servico | undefined {
   return todosServicos.find(servico => servico.id === id)
 }
 
+
