@@ -17,7 +17,17 @@ let app: FirebaseApp
 let db: Firestore
 let auth: Auth
 
+// Inicializar apenas no cliente (browser)
 if (typeof window !== 'undefined') {
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig)
+  } else {
+    app = getApps()[0]
+  }
+  db = getFirestore(app)
+  auth = getAuth(app)
+} else {
+  // No servidor, inicializar também para evitar erros de build
   if (!getApps().length) {
     app = initializeApp(firebaseConfig)
   } else {
