@@ -37,7 +37,7 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
         setErrorHorario('')
         try {
           const ocupados = await buscarHorariosOcupados(formData.data)
-          setHorariosOcupados(ocupados)
+          setHorariosOcupados(ocupados || [])
           // Se o horário selecionado estiver ocupado, limpar a seleção
           setFormData(prev => {
             if (prev.horario && ocupados.includes(prev.horario)) {
@@ -48,12 +48,15 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
           })
         } catch (error) {
           console.error('Erro ao carregar horários:', error)
-          setErrorHorario('Erro ao verificar horários disponíveis.')
+          // Mesmo com erro, mostrar os horários disponíveis
+          setHorariosOcupados([])
+          setErrorHorario('Não foi possível verificar horários ocupados. Tente novamente.')
         } finally {
           setLoadingHorarios(false)
         }
       } else {
         setHorariosOcupados([])
+        setLoadingHorarios(false)
       }
     }
     carregarHorariosOcupados()
@@ -244,67 +247,57 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
                 />
               </div>
 
-              {formData.data && (
-                <div>
-                  <label className="block text-wine-100 mb-2 font-medium">
-                    Horário Preferencial *
-                  </label>
-                  {loadingHorarios ? (
-                    <div className="text-wine-300 text-center py-4">
-                      Verificando horários disponíveis...
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                        {HORARIOS_DISPONIVEIS.map((horario) => {
-                          const ocupado = horariosOcupados.includes(horario)
-                          const selecionado = formData.horario === horario
-                          return (
-                            <button
-                              key={horario}
-                              type="button"
-                              onClick={() => handleHorarioClick(horario)}
-                              disabled={ocupado}
-                              className={`
-                                px-4 py-3 rounded-lg font-semibold transition-all duration-200
-                                ${
-                                  selecionado
-                                    ? 'bg-wine-600 text-wine-50 ring-2 ring-wine-400 scale-105'
-                                    : ocupado
-                                    ? 'bg-wine-900/50 text-wine-500 cursor-not-allowed opacity-50'
-                                    : 'bg-wine-800/50 text-wine-50 hover:bg-wine-700/50 hover:scale-105 border border-wine-700'
-                                }
-                              `}
-                            >
-                              {horario}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      {errorHorario && (
-                        <p className="text-red-400 text-sm mt-2">{errorHorario}</p>
-                      )}
-                      {formData.horario && !errorHorario && (
-                        <p className="text-green-400 text-sm mt-2">
-                          Horário selecionado: {formData.horario}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
-              {!formData.data && (
-                <div>
-                  <label className="block text-wine-100 mb-2 font-medium">
-                    Horário Preferencial *
-                  </label>
+              <div>
+                <label className="block text-wine-100 mb-2 font-medium">
+                  Horário Preferencial *
+                </label>
+                {!formData.data ? (
                   <p className="text-wine-400 text-sm">
                     Por favor, selecione uma data primeiro para ver os horários disponíveis.
                   </p>
-                </div>
-              )}
-
+                ) : loadingHorarios ? (
+                  <div className="text-wine-300 text-center py-4">
+                    Verificando horários disponíveis...
+                  </div>
+                ) : (
+                  <div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-2">
+                      {HORARIOS_DISPONIVEIS.map((horario) => {
+                        const ocupado = horariosOcupados.includes(horario)
+                        const selecionado = formData.horario === horario
+                        return (
+                          <button
+                            key={horario}
+                            type="button"
+                            onClick={() => handleHorarioClick(horario)}
+                            disabled={ocupado}
+                            className={`
+                              px-4 py-3 rounded-lg font-semibold transition-all duration-200
+                              ${
+                                selecionado
+                                  ? 'bg-wine-600 text-wine-50 ring-2 ring-wine-400 scale-105'
+                                  : ocupado
+                                  ? 'bg-wine-900/50 text-wine-500 cursor-not-allowed opacity-50'
+                                  : 'bg-wine-800/50 text-wine-50 hover:bg-wine-700/50 hover:scale-105 border border-wine-700'
+                              }
+                            `}
+                          >
+                            {horario}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {errorHorario && (
+                      <p className="text-red-400 text-sm mt-2">{errorHorario}</p>
+                    )}
+                    {formData.horario && !errorHorario && (
+                      <p className="text-green-400 text-sm mt-2">
+                        Horário selecionado: {formData.horario}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div>
                 <label
