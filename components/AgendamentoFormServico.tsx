@@ -261,7 +261,7 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
                   </div>
                 ) : (
                   <div>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-2">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 mb-2">
                       {HORARIOS_DISPONIVEIS.map((horario) => {
                         const ocupado = horariosOcupados.includes(horario)
                         const selecionado = formData.horario === horario
@@ -271,14 +271,21 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
                             type="button"
                             onClick={() => handleHorarioClick(horario)}
                             disabled={ocupado}
+                            style={{ 
+                              appearance: 'none',
+                              WebkitAppearance: 'none',
+                              MozAppearance: 'none'
+                            }}
                             className={`
-                              px-4 py-3 rounded-lg font-semibold transition-all duration-200
+                              px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200
+                              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wine-500
+                              border-none
                               ${
                                 selecionado
-                                  ? 'bg-wine-600 text-wine-50 ring-2 ring-wine-400 scale-105'
+                                  ? 'bg-wine-600 text-wine-50 shadow-md'
                                   : ocupado
-                                  ? 'bg-wine-900/50 text-wine-500 cursor-not-allowed opacity-50'
-                                  : 'bg-wine-800/50 text-wine-50 hover:bg-wine-700/50 hover:scale-105 border border-wine-700'
+                                  ? 'bg-wine-900/30 text-wine-500 cursor-not-allowed opacity-40 line-through'
+                                  : 'bg-wine-800/40 text-wine-50 hover:bg-wine-700/60 hover:shadow-md'
                               }
                             `}
                           >
@@ -289,11 +296,6 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
                     </div>
                     {errorHorario && (
                       <p className="text-red-400 text-sm mt-2">{errorHorario}</p>
-                    )}
-                    {formData.horario && !errorHorario && (
-                      <p className="text-green-400 text-sm mt-2">
-                        Horário selecionado: {formData.horario}
-                      </p>
                     )}
                   </div>
                 )}
