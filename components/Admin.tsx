@@ -7,6 +7,7 @@ import {
   deletarAgendamento,
   Agendamento 
 } from '@/lib/agendamentos'
+import { popularServicosSeNaoExistem } from '@/lib/seed-servicos'
 
 export default function Admin() {
   const [isAdmin, setIsAdmin] = useState(false)
@@ -14,6 +15,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(false)
   const [filtroStatus, setFiltroStatus] = useState<'todos' | Agendamento['status']>('todos')
   const [busca, setBusca] = useState('')
+  const [populandoServicos, setPopulandoServicos] = useState(false)
 
   useEffect(() => {
     // Verifica se está na rota /#adm
@@ -66,6 +68,22 @@ export default function Admin() {
     } catch (error) {
       console.error('Erro ao deletar agendamento:', error)
       alert('Erro ao deletar agendamento')
+    }
+  }
+
+  const handlePopularServicos = async () => {
+    if (!confirm('Deseja popular o banco de dados com os serviços iniciais? Isso só criará serviços que ainda não existem.')) {
+      return
+    }
+    setPopulandoServicos(true)
+    try {
+      const resultado = await popularServicosSeNaoExistem()
+      alert(resultado.mensagem)
+    } catch (error) {
+      console.error('Erro ao popular serviços:', error)
+      alert('Erro ao popular serviços. Verifique o console para mais detalhes.')
+    } finally {
+      setPopulandoServicos(false)
     }
   }
 
@@ -244,6 +262,24 @@ export default function Admin() {
               ))}
             </div>
           )}
+
+          {/* Botão para popular serviços */}
+          <div className="mt-8 pt-8 border-t border-wine-700">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-wine-100">Banco de Dados</h3>
+              <button
+                onClick={handlePopularServicos}
+                disabled={populandoServicos}
+                className="px-4 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-sm font-medium transition-colors border border-blue-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {populandoServicos ? 'Populando...' : 'Popular Serviços no Banco'}
+              </button>
+            </div>
+            <p className="text-wine-400 text-sm mb-4">
+              Use este botão para popular o banco de dados Firestore com os serviços iniciais. 
+              Serviços que já existem não serão duplicados.
+            </p>
+          </div>
 
           {/* Estatísticas */}
           <div className="mt-8 pt-8 border-t border-wine-700">

@@ -82,3 +82,6 @@ O Vercel fará o deploy automático!
 3. Siga as instruções para configurar o DNS
 
 
+
+
+

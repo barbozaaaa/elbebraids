@@ -1,12 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Servico } from '@/lib/servicos'
-import { criarAgendamento } from '@/lib/agendamentos'
+import { criarAgendamento, buscarHorariosOcupados, verificarHorarioDisponivel } from '@/lib/agendamentos'
 
 interface AgendamentoFormServicoProps {
   servico: Servico
 }
+
+// Horários disponíveis
+const HORARIOS_DISPONIVEIS = [
+  '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', 
+  '16:00', '17:00', '18:00', '19:00', '20:00'
+]
 
 export default function AgendamentoFormServico({ servico }: AgendamentoFormServicoProps) {
   const [formData, setFormData] = useState({
@@ -19,18 +25,88 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
   })
 
   const [submitted, setSubmitted] = useState(false)
+  const [horariosOcupados, setHorariosOcupados] = useState<string[]>([])
+  const [loadingHorarios, setLoadingHorarios] = useState(false)
+  const [errorHorario, setErrorHorario] = useState('')
+
+  // Carregar horários ocupados quando a data mudar
+  useEffect(() => {
+    const carregarHorariosOcupados = async () => {
+      if (formData.data) {
+        setLoadingHorarios(true)
+        setErrorHorario('')
+        try {
+          const ocupados = await buscarHorariosOcupados(formData.data)
+          setHorariosOcupados(ocupados)
+          // Se o horário selecionado estiver ocupado, limpar a seleção
+          setFormData(prev => {
+            if (prev.horario && ocupados.includes(prev.horario)) {
+              setErrorHorario('Este horário já está ocupado. Por favor, escolha outro.')
+              return { ...prev, horario: '' }
+            }
+            return prev
+          })
+        } catch (error) {
+          console.error('Erro ao carregar horários:', error)
+          setErrorHorario('Erro ao verificar horários disponíveis.')
+        } finally {
+          setLoadingHorarios(false)
+        }
+      } else {
+        setHorariosOcupados([])
+      }
+    }
+    carregarHorariosOcupados()
+  }, [formData.data])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
+    const { name, value } = e.target
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     })
+    // Limpar erro quando mudar a data
+    if (name === 'data') {
+      setErrorHorario('')
+      setFormData(prev => ({ ...prev, horario: '' }))
+    }
+  }
+
+  const handleHorarioClick = (horario: string) => {
+    if (horariosOcupados.includes(horario)) {
+      setErrorHorario('Este horário já está ocupado. Por favor, escolha outro.')
+      return
+    }
+    setFormData({
+      ...formData,
+      horario: horario,
+    })
+    setErrorHorario('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validar se o horário foi selecionado
+    if (!formData.horario) {
+      setErrorHorario('Por favor, selecione um horário.')
+      return
+    }
+    
+    // Validar se o horário ainda está disponível antes de enviar
+    if (formData.data && formData.horario) {
+      const disponivel = await verificarHorarioDisponivel(formData.data, formData.horario)
+      if (!disponivel) {
+        setErrorHorario('Este horário foi ocupado enquanto você preenchia o formulário. Por favor, escolha outro horário.')
+        // Recarregar horários ocupados
+        const ocupados = await buscarHorariosOcupados(formData.data)
+        setHorariosOcupados(ocupados)
+        return
+      }
+    }
+
     try {
       await criarAgendamento({
         nome: formData.nome,
@@ -56,6 +132,8 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
           horario: '',
           observacoes: '',
         })
+        setHorariosOcupados([])
+        setErrorHorario('')
       }, 3000)
     } catch (error) {
       console.error('Erro ao enviar agendamento:', error)
@@ -147,43 +225,86 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label
-                    htmlFor="data"
-                    className="block text-wine-100 mb-2 font-medium"
-                  >
-                    Data Preferencial *
-                  </label>
-                  <input
-                    type="date"
-                    id="data"
-                    name="data"
-                    required
-                    value={formData.data}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-wine-800/50 border border-wine-700 text-wine-50 focus:outline-none focus:ring-2 focus:ring-wine-500 focus:border-transparent"
-                  />
-                </div>
+              <div>
+                <label
+                  htmlFor="data"
+                  className="block text-wine-100 mb-2 font-medium"
+                >
+                  Data Preferencial *
+                </label>
+                <input
+                  type="date"
+                  id="data"
+                  name="data"
+                  required
+                  value={formData.data}
+                  onChange={handleChange}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-3 rounded-lg bg-wine-800/50 border border-wine-700 text-wine-50 focus:outline-none focus:ring-2 focus:ring-wine-500 focus:border-transparent"
+                />
+              </div>
 
+              {formData.data && (
                 <div>
-                  <label
-                    htmlFor="horario"
-                    className="block text-wine-100 mb-2 font-medium"
-                  >
+                  <label className="block text-wine-100 mb-2 font-medium">
                     Horário Preferencial *
                   </label>
-                  <input
-                    type="time"
-                    id="horario"
-                    name="horario"
-                    required
-                    value={formData.horario}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-wine-800/50 border border-wine-700 text-wine-50 focus:outline-none focus:ring-2 focus:ring-wine-500 focus:border-transparent"
-                  />
+                  {loadingHorarios ? (
+                    <div className="text-wine-300 text-center py-4">
+                      Verificando horários disponíveis...
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                        {HORARIOS_DISPONIVEIS.map((horario) => {
+                          const ocupado = horariosOcupados.includes(horario)
+                          const selecionado = formData.horario === horario
+                          return (
+                            <button
+                              key={horario}
+                              type="button"
+                              onClick={() => handleHorarioClick(horario)}
+                              disabled={ocupado}
+                              className={`
+                                px-4 py-3 rounded-lg font-semibold transition-all duration-200
+                                ${
+                                  selecionado
+                                    ? 'bg-wine-600 text-wine-50 ring-2 ring-wine-400 scale-105'
+                                    : ocupado
+                                    ? 'bg-wine-900/50 text-wine-500 cursor-not-allowed opacity-50'
+                                    : 'bg-wine-800/50 text-wine-50 hover:bg-wine-700/50 hover:scale-105 border border-wine-700'
+                                }
+                              `}
+                            >
+                              {horario}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {errorHorario && (
+                        <p className="text-red-400 text-sm mt-2">{errorHorario}</p>
+                      )}
+                      {formData.horario && !errorHorario && (
+                        <p className="text-green-400 text-sm mt-2">
+                          Horário selecionado: {formData.horario}
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
-              </div>
+              )}
+
+              {!formData.data && (
+                <div>
+                  <label className="block text-wine-100 mb-2 font-medium">
+                    Horário Preferencial *
+                  </label>
+                  <p className="text-wine-400 text-sm">
+                    Por favor, selecione uma data primeiro para ver os horários disponíveis.
+                  </p>
+                </div>
+              )}
+
 
               <div>
                 <label

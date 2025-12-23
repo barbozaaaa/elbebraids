@@ -29,6 +29,12 @@ service cloud.firestore {
     match /agendamentos/{document=**} {
       allow read, write: if true; // Em produção, adicione autenticação
     }
+    
+    // Permitir leitura pública para serviços, escrita apenas para admins
+    match /servicos/{document=**} {
+      allow read: if true; // Todos podem ler serviços
+      allow write: if true; // Em produção, adicione autenticação de admin
+    }
   }
 }
 ```
@@ -66,7 +72,11 @@ npm install
 
 ### 7. Estrutura do Banco de Dados
 
-O sistema criará automaticamente uma coleção chamada `agendamentos` com a seguinte estrutura:
+O sistema utiliza duas coleções principais no Firestore:
+
+#### Coleção: `agendamentos`
+
+Estrutura de cada documento:
 
 ```typescript
 {
@@ -85,7 +95,42 @@ O sistema criará automaticamente uma coleção chamada `agendamentos` com a seg
 }
 ```
 
-### 8. Acessar o Painel Admin
+#### Coleção: `servicos`
+
+Estrutura de cada documento:
+
+```typescript
+{
+  nome: string
+  preco: string
+  categoria: string          // Ex: 'Masculina' | 'Feminina'
+  subcategoria: string       // Ex: 'Básica' | 'Simetria' | 'Box Braids' | 'Fulani' | etc.
+  ativo?: boolean            // Default: true
+  ordem?: number             // Para ordenação
+  descricao?: string         // Opcional: descrição do serviço
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+```
+
+### 8. Popular Banco de Dados com Serviços
+
+Para popular o banco de dados com os serviços iniciais:
+
+#### Em Desenvolvimento (Local):
+1. Acesse o painel administrativo: `http://localhost:3000/#adm`
+2. Clique no botão **"Popular Serviços no Banco"** na seção "Banco de Dados"
+3. Isso criará todos os 19 serviços iniciais no Firestore
+4. Serviços que já existem não serão duplicados
+
+#### Em Produção (Vercel):
+1. Acesse: `https://seu-dominio.vercel.app/#adm`
+2. Clique no botão **"Popular Serviços no Banco"** na seção "Banco de Dados"
+3. Ou acesse a API route: `https://seu-dominio.vercel.app/api/popular-servicos`
+
+**📄 Veja mais detalhes em:** `POPULAR_BANCO.md`
+
+### 9. Acessar o Painel Admin
 
 Após configurar tudo, acesse:
 ```
@@ -100,6 +145,32 @@ http://localhost:3000/#adm
 - ✅ Atualizar status dos agendamentos
 - ✅ Deletar agendamentos
 - ✅ Ver estatísticas em tempo real
+- ✅ Popular banco de dados com serviços iniciais
+
+## Funções Disponíveis no Código
+
+### Agendamentos (`lib/agendamentos.ts`)
+- `criarAgendamento()` - Criar novo agendamento
+- `buscarAgendamentos()` - Buscar todos os agendamentos
+- `buscarAgendamentosPorStatus()` - Filtrar por status
+- `buscarAgendamentosPorData()` - Filtrar por data
+- `atualizarStatusAgendamento()` - Atualizar status
+- `deletarAgendamento()` - Deletar agendamento
+
+### Serviços (`lib/servicos.ts`)
+- `buscarTodosServicos()` - Buscar todos os serviços (com fallback para dados estáticos)
+- `buscarServicoPorId()` - Buscar serviço por ID
+- `buscarServicoPorSlug()` - Buscar serviço por slug
+- `buscarServicosPorCategoria()` - Filtrar por categoria
+- `buscarServicosPorSubcategoria()` - Filtrar por categoria e subcategoria
+- `criarServico()` - Criar novo serviço
+- `atualizarServico()` - Atualizar serviço
+- `deletarServico()` - Soft delete (marca como inativo)
+- `deletarServicoPermanentemente()` - Deletar permanentemente
+
+### Popular Serviços (`lib/seed-servicos.ts`)
+- `popularServicos()` - Popular todos os serviços (pode criar duplicados)
+- `popularServicosSeNaoExistem()` - Popular apenas serviços que não existem
 
 ## Próximos Passos (Opcional)
 
@@ -107,5 +178,8 @@ http://localhost:3000/#adm
 - Adicionar notificações por e-mail/WhatsApp
 - Exportar dados para CSV/Excel
 - Adicionar calendário visual
+- Criar interface admin para gerenciar serviços (CRUD completo)
+
+
 
 

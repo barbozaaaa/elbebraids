@@ -139,4 +139,37 @@ export async function buscarAgendamentosPorData(data: string): Promise<Agendamen
   }
 }
 
+// Verificar se um horário está disponível
+export async function verificarHorarioDisponivel(data: string, horario: string): Promise<boolean> {
+  try {
+    const agendamentos = await buscarAgendamentosPorData(data)
+    // Filtrar apenas agendamentos confirmados ou pendentes (não cancelados)
+    const agendamentosAtivos = agendamentos.filter(
+      ag => ag.status !== 'cancelado' && ag.horario === horario
+    )
+    return agendamentosAtivos.length === 0
+  } catch (error) {
+    console.error('Erro ao verificar horário disponível:', error)
+    return false
+  }
+}
+
+// Buscar horários ocupados em uma data
+export async function buscarHorariosOcupados(data: string): Promise<string[]> {
+  try {
+    const agendamentos = await buscarAgendamentosPorData(data)
+    // Filtrar apenas agendamentos confirmados ou pendentes (não cancelados)
+    const agendamentosAtivos = agendamentos.filter(
+      ag => ag.status !== 'cancelado'
+    )
+    return agendamentosAtivos.map(ag => ag.horario)
+  } catch (error) {
+    console.error('Erro ao buscar horários ocupados:', error)
+    return []
+  }
+}
+
+
+
+
 
