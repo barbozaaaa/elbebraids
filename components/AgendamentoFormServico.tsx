@@ -251,11 +251,7 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
                 <label className="block text-wine-100 mb-2 font-medium">
                   Horário Preferencial *
                 </label>
-                {!formData.data ? (
-                  <p className="text-wine-400 text-sm">
-                    Por favor, selecione uma data primeiro para ver os horários disponíveis.
-                  </p>
-                ) : loadingHorarios ? (
+                {loadingHorarios && formData.data ? (
                   <div className="text-wine-300 text-center py-4">
                     Verificando horários disponíveis...
                   </div>
@@ -263,29 +259,37 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
                   <div>
                     <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 mb-2">
                       {HORARIOS_DISPONIVEIS.map((horario) => {
-                        const ocupado = horariosOcupados.includes(horario)
+                        const ocupado = formData.data ? horariosOcupados.includes(horario) : false
                         const selecionado = formData.horario === horario
+                        const desabilitado = ocupado || !formData.data
                         return (
                           <button
                             key={horario}
                             type="button"
-                            onClick={() => handleHorarioClick(horario)}
-                            disabled={ocupado}
+                            onClick={() => {
+                              if (!formData.data) {
+                                setErrorHorario('Por favor, selecione uma data primeiro.')
+                                return
+                              }
+                              handleHorarioClick(horario)
+                            }}
+                            disabled={desabilitado}
                             style={{ 
                               appearance: 'none',
                               WebkitAppearance: 'none',
                               MozAppearance: 'none'
                             }}
                             className={`
-                              px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200
-                              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wine-500
-                              border-none
+                              px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200
+                              focus:outline-none focus:ring-2 focus:ring-wine-500
                               ${
                                 selecionado
-                                  ? 'bg-wine-600 text-wine-50 shadow-md'
+                                  ? 'bg-wine-600 text-wine-50 shadow-lg scale-105'
                                   : ocupado
-                                  ? 'bg-wine-900/30 text-wine-500 cursor-not-allowed opacity-40 line-through'
-                                  : 'bg-wine-800/40 text-wine-50 hover:bg-wine-700/60 hover:shadow-md'
+                                  ? 'bg-wine-900/30 text-wine-500 cursor-not-allowed opacity-50'
+                                  : !formData.data
+                                  ? 'bg-wine-800/30 text-wine-400 cursor-not-allowed'
+                                  : 'bg-wine-800/50 text-wine-50 hover:bg-wine-700/70 hover:shadow-md border border-wine-700/50'
                               }
                             `}
                           >
@@ -294,6 +298,11 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
                         )
                       })}
                     </div>
+                    {!formData.data && (
+                      <p className="text-wine-400 text-sm mt-2">
+                        Selecione uma data para habilitar os horários
+                      </p>
+                    )}
                     {errorHorario && (
                       <p className="text-red-400 text-sm mt-2">{errorHorario}</p>
                     )}
