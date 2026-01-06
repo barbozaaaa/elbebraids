@@ -2,17 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { Servico } from '@/lib/servicos'
-import { criarAgendamento, buscarHorariosOcupados, verificarHorarioDisponivel } from '@/lib/agendamentos'
 
 interface AgendamentoFormServicoProps {
   servico: Servico
 }
-
-// Horários disponíveis
-const HORARIOS_DISPONIVEIS = [
-  '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', 
-  '16:00', '17:00', '18:00', '19:00', '20:00'
-]
 
 export default function AgendamentoFormServico({ servico }: AgendamentoFormServicoProps) {
   const [formData, setFormData] = useState({
@@ -25,103 +18,74 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
   })
 
   const [submitted, setSubmitted] = useState(false)
-  const [horariosOcupados, setHorariosOcupados] = useState<string[]>([])
-  const [loadingHorarios, setLoadingHorarios] = useState(false)
-  const [errorHorario, setErrorHorario] = useState('')
+  const [selectedDate, setSelectedDate] = useState<string>('')
 
-  // Carregar horários ocupados quando a data mudar
-  useEffect(() => {
-    const carregarHorariosOcupados = async () => {
-      if (formData.data) {
-        setLoadingHorarios(true)
-        setErrorHorario('')
-        try {
-          const ocupados = await buscarHorariosOcupados(formData.data)
-          setHorariosOcupados(ocupados || [])
-          // Se o horário selecionado estiver ocupado, limpar a seleção
-          setFormData(prev => {
-            if (prev.horario && ocupados.includes(prev.horario)) {
-              setErrorHorario('Este horário já está ocupado. Por favor, escolha outro.')
-              return { ...prev, horario: '' }
-            }
-            return prev
-          })
-        } catch (error) {
-          console.error('Erro ao carregar horários:', error)
-          // Mesmo com erro, mostrar os horários disponíveis
-          setHorariosOcupados([])
-          setErrorHorario('Não foi possível verificar horários ocupados. Tente novamente.')
-        } finally {
-          setLoadingHorarios(false)
-        }
-      } else {
-        setHorariosOcupados([])
-        setLoadingHorarios(false)
-      }
-    }
-    carregarHorariosOcupados()
-  }, [formData.data])
+  // Gerar os próximos 20 dias
+  const generateNext20Days = () => {
+    const days = []
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Resetar horas para início do dia
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target
-    setFormData({
-      ...formData,
-      [name]: value,
-    })
-    // Limpar erro quando mudar a data
-    if (name === 'data') {
-      setErrorHorario('')
-      setFormData(prev => ({ ...prev, horario: '' }))
+    for (let i = 0; i < 20; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() + i)
+      days.push(date)
     }
+
+    return days
   }
 
-  const handleHorarioClick = (horario: string) => {
-    if (horariosOcupados.includes(horario)) {
-      setErrorHorario('Este horário já está ocupado. Por favor, escolha outro.')
-      return
+  // Gerar horários de 1h30 em 1h30
+  const generateTimeSlots = () => {
+    const slots = []
+    const startMinutes = 8 * 60 // Começar às 8:00 (480 minutos)
+    const endMinutes = 18 * 60 // Terminar às 18:00 (1080 minutos)
+    const intervalMinutes = 90 // Intervalo de 1h30 (90 minutos)
+    
+    let currentMinutes = startMinutes
+    
+    while (currentMinutes < endMinutes) {
+      const hours = Math.floor(currentMinutes / 60)
+      const minutes = currentMinutes % 60
+      slots.push(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`)
+      currentMinutes += intervalMinutes
     }
+
+    return slots
+  }
+
+  const availableDays = generateNext20Days()
+  const timeSlots = generateTimeSlots()
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     setFormData({
       ...formData,
-      horario: horario,
+      [e.target.name]: e.target.value,
     })
-    setErrorHorario('')
+  }
+
+  const handleDateSelect = (date: Date) => {
+    const dateString = date.toISOString().split('T')[0]
+    setSelectedDate(dateString)
+    setFormData({
+      ...formData,
+      data: dateString,
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Validar se o horário foi selecionado
-    if (!formData.horario) {
-      setErrorHorario('Por favor, selecione um horário.')
-      return
-    }
-    
-    // Validar se o horário ainda está disponível antes de enviar
-    if (formData.data && formData.horario) {
-      const disponivel = await verificarHorarioDisponivel(formData.data, formData.horario)
-      if (!disponivel) {
-        setErrorHorario('Este horário foi ocupado enquanto você preenchia o formulário. Por favor, escolha outro horário.')
-        // Recarregar horários ocupados
-        const ocupados = await buscarHorariosOcupados(formData.data)
-        setHorariosOcupados(ocupados)
-        return
-      }
-    }
-
     try {
-      await criarAgendamento({
-        nome: formData.nome,
-        telefone: formData.telefone,
-        email: formData.email || undefined,
-        data: formData.data,
-        horario: formData.horario,
+      // Aqui você pode adicionar a lógica para enviar os dados ao Firebase
+      console.log('Formulário enviado:', {
+        ...formData,
         servico: servico.nome,
-        servicoId: servico.id,
         preco: servico.preco,
-        observacoes: formData.observacoes || undefined,
       })
+      
       setSubmitted(true)
       
       // Limpar formulário após 3 segundos
@@ -135,8 +99,7 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
           horario: '',
           observacoes: '',
         })
-        setHorariosOcupados([])
-        setErrorHorario('')
+        setSelectedDate('')
       }, 3000)
     } catch (error) {
       console.error('Erro ao enviar agendamento:', error)
@@ -144,21 +107,28 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
     }
   }
 
-  return (
-    <section id="agendamento" className="py-20 relative">
-      <div className="container mx-auto px-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-wine-800/30 rounded-lg p-6 mb-8 border border-wine-700/50">
-            <h3 className="text-2xl font-bold text-wine-50 mb-2">Serviço Selecionado</h3>
-            <p className="text-wine-200 text-lg">{servico.nome}</p>
-            <p className="text-wine-300 text-xl font-semibold mt-2">{servico.preco}</p>
-          </div>
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('pt-BR', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+    })
+  }
 
+  const isToday = (date: Date) => {
+    const today = new Date()
+    return date.toDateString() === today.toDateString()
+  }
+
+  return (
+    <section id="agendamento" className="py-20 bg-wine-900/50">
+      <div className="container mx-auto px-4">
+        <div className="max-w-4xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-4 text-wine-50">
-            Agendar Consulta
+            Agendar {servico.nome}
           </h2>
           <p className="text-center text-wine-200 mb-12">
-            Preencha os dados abaixo para agendar sua consulta
+            Escolha a data e horário para seu agendamento
           </p>
 
           {submitted ? (
@@ -169,147 +139,155 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
               <p className="mt-2">Entraremos em contato em breve.</p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label
-                  htmlFor="nome"
-                  className="block text-wine-100 mb-2 font-medium"
-                >
-                  Nome Completo *
-                </label>
-                <input
-                  type="text"
-                  id="nome"
-                  name="nome"
-                  required
-                  value={formData.nome}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg bg-wine-800/50 border border-wine-700 text-wine-50 placeholder-wine-400 focus:outline-none focus:ring-2 focus:ring-wine-500 focus:border-transparent"
-                  placeholder="Seu nome completo"
-                />
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Informações do Serviço */}
+              <div className="bg-wine-800/30 border border-wine-700 rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-wine-50 mb-2">{servico.nome}</h3>
+                <p className="text-wine-300">{servico.preco}</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Dados Pessoais */}
+              <div className="space-y-6">
+                <h3 className="text-2xl font-semibold text-wine-50">Dados Pessoais</h3>
+                
                 <div>
                   <label
-                    htmlFor="telefone"
+                    htmlFor="nome"
                     className="block text-wine-100 mb-2 font-medium"
                   >
-                    Telefone *
+                    Nome Completo *
                   </label>
                   <input
-                    type="tel"
-                    id="telefone"
-                    name="telefone"
+                    type="text"
+                    id="nome"
+                    name="nome"
                     required
-                    value={formData.telefone}
+                    value={formData.nome}
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-lg bg-wine-800/50 border border-wine-700 text-wine-50 placeholder-wine-400 focus:outline-none focus:ring-2 focus:ring-wine-500 focus:border-transparent"
-                    placeholder="(11) 99999-9999"
+                    placeholder="Seu nome completo"
                   />
                 </div>
 
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-wine-100 mb-2 font-medium"
-                  >
-                    E-mail
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-wine-800/50 border border-wine-700 text-wine-50 placeholder-wine-400 focus:outline-none focus:ring-2 focus:ring-wine-500 focus:border-transparent"
-                    placeholder="seu@email.com"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label
+                      htmlFor="telefone"
+                      className="block text-wine-100 mb-2 font-medium"
+                    >
+                      Telefone *
+                    </label>
+                    <input
+                      type="tel"
+                      id="telefone"
+                      name="telefone"
+                      required
+                      value={formData.telefone}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 rounded-lg bg-wine-800/50 border border-wine-700 text-wine-50 placeholder-wine-400 focus:outline-none focus:ring-2 focus:ring-wine-500 focus:border-transparent"
+                      placeholder="(11) 99999-9999"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="email"
+                      className="block text-wine-100 mb-2 font-medium"
+                    >
+                      E-mail
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 rounded-lg bg-wine-800/50 border border-wine-700 text-wine-50 placeholder-wine-400 focus:outline-none focus:ring-2 focus:ring-wine-500 focus:border-transparent"
+                      placeholder="seu@email.com"
+                    />
+                  </div>
                 </div>
               </div>
 
+              {/* Seleção de Data */}
               <div>
-                <label
-                  htmlFor="data"
-                  className="block text-wine-100 mb-2 font-medium"
-                >
-                  Data Preferencial *
-                </label>
+                <h3 className="text-2xl font-semibold text-wine-50 mb-4">Escolha a Data *</h3>
+                <div className="max-w-md mx-auto space-y-2">
+                  {availableDays.map((day, index) => {
+                    const dateString = day.toISOString().split('T')[0]
+                    const isSelected = selectedDate === dateString
+                    const isTodayDate = isToday(day)
+
+                    return (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleDateSelect(day)}
+                        className={`w-full p-3 rounded-lg border-2 transition-all duration-200 text-left ${
+                          isSelected
+                            ? 'bg-wine-600 border-wine-500 text-wine-50'
+                            : 'bg-wine-800/50 border-wine-700 text-wine-200 hover:border-wine-600 hover:bg-wine-800/70'
+                        } ${isTodayDate ? 'ring-2 ring-wine-400' : ''}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-medium">
+                              {formatDate(day)}
+                            </div>
+                            {isTodayDate && (
+                              <div className="text-xs text-wine-300 mt-1">Hoje</div>
+                            )}
+                          </div>
+                          {isSelected && (
+                            <div className="text-wine-50">✓</div>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
                 <input
-                  type="date"
-                  id="data"
+                  type="hidden"
                   name="data"
-                  required
                   value={formData.data}
-                  onChange={handleChange}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-3 rounded-lg bg-wine-800/50 border border-wine-700 text-wine-50 focus:outline-none focus:ring-2 focus:ring-wine-500 focus:border-transparent"
+                  required
                 />
               </div>
 
-              <div>
-                <label className="block text-wine-100 mb-2 font-medium">
-                  Horário Preferencial *
-                </label>
-                {loadingHorarios && formData.data ? (
-                  <div className="text-wine-300 text-center py-4">
-                    Verificando horários disponíveis...
-                  </div>
-                ) : (
-                  <div>
-                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 mb-2">
-                      {HORARIOS_DISPONIVEIS.map((horario) => {
-                        const ocupado = formData.data ? horariosOcupados.includes(horario) : false
-                        const selecionado = formData.horario === horario
-                        const desabilitado = ocupado || !formData.data
-                        return (
-                          <button
-                            key={horario}
-                            type="button"
-                            onClick={() => {
-                              if (!formData.data) {
-                                setErrorHorario('Por favor, selecione uma data primeiro.')
-                                return
-                              }
-                              handleHorarioClick(horario)
-                            }}
-                            disabled={desabilitado}
-                            style={{ 
-                              appearance: 'none',
-                              WebkitAppearance: 'none',
-                              MozAppearance: 'none'
-                            }}
-                            className={`
-                              px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200
-                              focus:outline-none focus:ring-2 focus:ring-wine-500
-                              ${
-                                selecionado
-                                  ? 'bg-wine-600 text-wine-50 shadow-lg scale-105'
-                                  : ocupado
-                                  ? 'bg-wine-900/30 text-wine-500 cursor-not-allowed opacity-50'
-                                  : !formData.data
-                                  ? 'bg-wine-800/30 text-wine-400 cursor-not-allowed'
-                                  : 'bg-wine-800/50 text-wine-50 hover:bg-wine-700/70 hover:shadow-md border border-wine-700/50'
-                              }
-                            `}
-                          >
-                            {horario}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {!formData.data && (
-                      <p className="text-wine-400 text-sm mt-2">
-                        Selecione uma data para habilitar os horários
-                      </p>
-                    )}
-                    {errorHorario && (
-                      <p className="text-red-400 text-sm mt-2">{errorHorario}</p>
-                    )}
-                  </div>
-                )}
-              </div>
+              {/* Seleção de Horário */}
+              {selectedDate && (
+                <div>
+                  <h3 className="text-2xl font-semibold text-wine-50 mb-4">Escolha o Horário *</h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                    {timeSlots.map((time, index) => {
+                      const isSelected = formData.horario === time
 
+                      return (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, horario: time })}
+                          className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                            isSelected
+                              ? 'bg-wine-600 border-wine-500 text-wine-50'
+                              : 'bg-wine-800/50 border-wine-700 text-wine-200 hover:border-wine-600 hover:bg-wine-800/70'
+                          }`}
+                        >
+                          {time}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <input
+                    type="hidden"
+                    name="horario"
+                    value={formData.horario}
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Observações */}
               <div>
                 <label
                   htmlFor="observacoes"
@@ -328,11 +306,13 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
                 ></textarea>
               </div>
 
+              {/* Botão de Envio */}
               <button
                 type="submit"
-                className="w-full bg-wine-600 hover:bg-wine-700 text-wine-50 px-8 py-4 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                disabled={!formData.data || !formData.horario}
+                className="w-full bg-wine-600 hover:bg-wine-700 disabled:bg-wine-800 disabled:cursor-not-allowed text-wine-50 px-8 py-4 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
-                Enviar Agendamento
+                Confirmar Agendamento
               </button>
             </form>
           )}
@@ -341,4 +321,3 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
     </section>
   )
 }
-

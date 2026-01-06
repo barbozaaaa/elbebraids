@@ -61,3 +61,4 @@ Depois de popular o banco, você pode:
 - Os serviços aparecerão automaticamente no catálogo (se você atualizar o código para usar Firestore)
 
 
+

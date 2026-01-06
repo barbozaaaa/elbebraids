@@ -1,6 +1,5 @@
 import Header from '@/components/Header'
 import Hero from '@/components/Hero'
-import Galeria from '@/components/Galeria'
 import SobreMim from '@/components/SobreMim'
 import Catalogo from '@/components/Catalogo'
 import Footer from '@/components/Footer'
@@ -14,7 +13,6 @@ export default function Home() {
       <AnimatedBackground />
       <Header />
       <Hero />
-      <Galeria />
       <Catalogo />
       <SobreMim />
       <Footer />
