@@ -166,24 +166,24 @@ export default function Admin() {
                 Todos
               </button>
               <button
-                onClick={() => setFiltroStatus('pendente')}
+                onClick={() => setFiltroStatus('concluido')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filtroStatus === 'pendente'
+                  filtroStatus === 'concluido'
                     ? 'bg-wine-600 text-wine-50'
                     : 'bg-wine-800/50 text-wine-200 hover:bg-wine-700/50'
                 }`}
               >
-                Pendentes
+                Concluídos
               </button>
               <button
-                onClick={() => setFiltroStatus('confirmado')}
+                onClick={() => setFiltroStatus('cancelado')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filtroStatus === 'confirmado'
+                  filtroStatus === 'cancelado'
                     ? 'bg-wine-600 text-wine-50'
                     : 'bg-wine-800/50 text-wine-200 hover:bg-wine-700/50'
                 }`}
               >
-                Confirmados
+                Cancelados
               </button>
             </div>
           </div>
@@ -240,21 +240,27 @@ export default function Admin() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <select
-                        value={agendamento.status || 'pendente'}
-                        onChange={(e) => handleAtualizarStatus(agendamento.id!, e.target.value as Agendamento['status'])}
-                        className="px-3 py-2 rounded-lg bg-wine-800/50 border border-wine-700 text-wine-50 text-sm focus:outline-none focus:ring-2 focus:ring-wine-500"
-                      >
-                        <option value="pendente">Pendente</option>
-                        <option value="confirmado">Confirmado</option>
-                        <option value="cancelado">Cancelado</option>
-                        <option value="concluido">Concluído</option>
-                      </select>
                       <button
-                        onClick={() => handleDeletar(agendamento.id!)}
-                        className="px-3 py-2 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-300 text-sm font-medium transition-colors border border-red-600/30"
+                        onClick={() => handleAtualizarStatus(agendamento.id!, 'concluido')}
+                        disabled={agendamento.status === 'concluido'}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                          agendamento.status === 'concluido'
+                            ? 'bg-blue-600/30 text-blue-300 border-blue-600/50 cursor-not-allowed'
+                            : 'bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border-blue-600/30'
+                        }`}
                       >
-                        Deletar
+                        Concluído
+                      </button>
+                      <button
+                        onClick={() => handleAtualizarStatus(agendamento.id!, 'cancelado')}
+                        disabled={agendamento.status === 'cancelado'}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                          agendamento.status === 'cancelado'
+                            ? 'bg-red-600/30 text-red-300 border-red-600/50 cursor-not-allowed'
+                            : 'bg-red-600/20 hover:bg-red-600/30 text-red-300 border-red-600/30'
+                        }`}
+                      >
+                        Cancelar
                       </button>
                     </div>
                   </div>
@@ -284,27 +290,21 @@ export default function Admin() {
           {/* Estatísticas */}
           <div className="mt-8 pt-8 border-t border-wine-700">
             <h3 className="text-xl font-semibold text-wine-100 mb-4">Estatísticas</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-wine-800/50 rounded-lg p-4 border border-wine-700">
                 <p className="text-wine-400 text-sm">Total</p>
                 <p className="text-2xl font-bold text-wine-50 mt-2">{agendamentos.length}</p>
               </div>
               <div className="bg-wine-800/50 rounded-lg p-4 border border-wine-700">
-                <p className="text-wine-400 text-sm">Pendentes</p>
-                <p className="text-2xl font-bold text-wine-50 mt-2">
-                  {agendamentos.filter(a => a.status === 'pendente').length}
-                </p>
-              </div>
-              <div className="bg-wine-800/50 rounded-lg p-4 border border-wine-700">
-                <p className="text-wine-400 text-sm">Confirmados</p>
-                <p className="text-2xl font-bold text-wine-50 mt-2">
-                  {agendamentos.filter(a => a.status === 'confirmado').length}
-                </p>
-              </div>
-              <div className="bg-wine-800/50 rounded-lg p-4 border border-wine-700">
                 <p className="text-wine-400 text-sm">Concluídos</p>
                 <p className="text-2xl font-bold text-wine-50 mt-2">
                   {agendamentos.filter(a => a.status === 'concluido').length}
+                </p>
+              </div>
+              <div className="bg-wine-800/50 rounded-lg p-4 border border-wine-700">
+                <p className="text-wine-400 text-sm">Cancelados</p>
+                <p className="text-2xl font-bold text-wine-50 mt-2">
+                  {agendamentos.filter(a => a.status === 'cancelado').length}
                 </p>
               </div>
             </div>

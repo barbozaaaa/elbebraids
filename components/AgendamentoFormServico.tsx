@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Servico } from '@/lib/servicos'
+import { criarAgendamento } from '@/lib/agendamentos'
 
 interface AgendamentoFormServicoProps {
   servico: Servico
@@ -79,11 +80,17 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
     e.preventDefault()
     
     try {
-      // Aqui você pode adicionar a lógica para enviar os dados ao Firebase
-      console.log('Formulário enviado:', {
-        ...formData,
+      // Salvar agendamento no Firebase
+      await criarAgendamento({
+        nome: formData.nome,
+        telefone: formData.telefone,
+        email: formData.email || undefined,
+        data: formData.data,
+        horario: formData.horario,
         servico: servico.nome,
         preco: servico.preco,
+        observacoes: formData.observacoes || undefined,
+        status: 'pendente',
       })
       
       setSubmitted(true)

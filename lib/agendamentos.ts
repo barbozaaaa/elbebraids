@@ -61,8 +61,25 @@ export const buscarAgendamentos = async (): Promise<Agendamento[]> => {
 export const criarAgendamento = async (agendamento: Omit<Agendamento, 'id' | 'createdAt'>): Promise<string> => {
   try {
     const agendamentosRef = collection(db, 'agendamentos')
+    
+    // Converter data string para Timestamp se necessário
+    let dataTimestamp: Timestamp | string | Date = agendamento.data
+    if (typeof agendamento.data === 'string') {
+      const dataDate = new Date(agendamento.data)
+      dataTimestamp = Timestamp.fromDate(dataDate)
+    } else if (agendamento.data instanceof Date) {
+      dataTimestamp = Timestamp.fromDate(agendamento.data)
+    }
+    
     const docRef = await addDoc(agendamentosRef, {
-      ...agendamento,
+      nome: agendamento.nome,
+      telefone: agendamento.telefone,
+      email: agendamento.email || '',
+      data: dataTimestamp,
+      horario: agendamento.horario,
+      servico: agendamento.servico || '',
+      preco: agendamento.preco || '',
+      observacoes: agendamento.observacoes || '',
       status: agendamento.status || 'pendente',
       createdAt: Timestamp.now(),
     })
