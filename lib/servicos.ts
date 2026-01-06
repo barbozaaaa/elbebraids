@@ -90,13 +90,16 @@ export async function buscarTodosServicos(): Promise<Servico[]> {
     
     // Filtrar serviços ativos no cliente (ativo !== false)
     const servicos = querySnapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate(),
-      }))
-      .filter(servico => servico.ativo !== false) as Servico[]
+      .map(doc => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
+        } as Servico
+      })
+      .filter(servico => servico.ativo !== false)
     
     return servicos
   } catch (error) {
@@ -228,13 +231,16 @@ export async function buscarServicosPorCategoria(categoria: string): Promise<Ser
     
     // Filtrar serviços ativos no cliente
     const servicos = querySnapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate(),
-      }))
-      .filter(servico => servico.ativo !== false) as Servico[]
+      .map(doc => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
+        } as Servico
+      })
+      .filter(servico => servico.ativo !== false)
     
     return servicos
   } catch (error) {
@@ -256,13 +262,16 @@ export async function buscarServicosPorSubcategoria(categoria: string, subcatego
     
     // Filtrar serviços ativos no cliente
     const servicos = querySnapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate(),
-      }))
-      .filter(servico => servico.ativo !== false) as Servico[]
+      .map(doc => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
+        } as Servico
+      })
+      .filter(servico => servico.ativo !== false)
     
     return servicos
   } catch (error) {
