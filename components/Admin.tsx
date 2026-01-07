@@ -7,7 +7,6 @@ import {
   deletarAgendamento,
   Agendamento 
 } from '@/lib/agendamentos'
-import { popularServicosSeNaoExistem } from '@/lib/seed-servicos'
 
 export default function Admin() {
   const [isAdmin, setIsAdmin] = useState(false)
@@ -16,7 +15,7 @@ export default function Admin() {
   const [erro, setErro] = useState<string | null>(null)
   const [filtroStatus, setFiltroStatus] = useState<'todos' | Agendamento['status']>('todos')
   const [busca, setBusca] = useState('')
-  const [populandoServicos, setPopulandoServicos] = useState(false)
+  const [dataResetCaixa, setDataResetCaixa] = useState<Date | null>(null)
 
   useEffect(() => {
     // Verifica se está na rota /#adm
@@ -84,20 +83,23 @@ export default function Admin() {
     }
   }
 
-  const handlePopularServicos = async () => {
-    if (!confirm('Deseja popular o banco de dados com os serviços iniciais? Isso só criará serviços que ainda não existem.')) {
+  // Carregar data de reset do localStorage
+  useEffect(() => {
+    const dataSalva = localStorage.getItem('dataResetCaixa')
+    if (dataSalva) {
+      setDataResetCaixa(new Date(dataSalva))
+    }
+  }, [])
+
+  const handleResetarCaixa = () => {
+    if (!confirm('Tem certeza que deseja resetar o caixa? Isso irá zerar a contagem de faturamento a partir de agora. Os agendamentos anteriores continuarão existindo, mas não serão mais contabilizados.')) {
       return
     }
-    setPopulandoServicos(true)
-    try {
-      const resultado = await popularServicosSeNaoExistem()
-      alert(resultado.mensagem)
-    } catch (error) {
-      console.error('Erro ao popular serviços:', error)
-      alert('Erro ao popular serviços. Verifique o console para mais detalhes.')
-    } finally {
-      setPopulandoServicos(false)
-    }
+    
+    const agora = new Date()
+    setDataResetCaixa(agora)
+    localStorage.setItem('dataResetCaixa', agora.toISOString())
+    alert('Caixa resetado com sucesso! A contagem agora começa a partir de hoje.')
   }
 
   const agendamentosFiltrados = agendamentos.filter(ag => {
@@ -168,14 +170,20 @@ export default function Admin() {
     return isNaN(numero) ? 0 : numero
   }
 
-  // Calcular total faturado (apenas agendamentos concluídos)
+  // Calcular total faturado (apenas agendamentos concluídos após data de reset)
   const calcularTotalFaturado = (): number => {
     return agendamentos
-      .filter(ag => ag.status === 'concluido')
+      .filter(ag => {
+        if (ag.status !== 'concluido') return false
+        if (!dataResetCaixa) return true // Se não há data de reset, conta todos
+        
+        const dataAg = typeof ag.data === 'string' ? new Date(ag.data) : ag.data
+        return dataAg >= dataResetCaixa
+      })
       .reduce((total, ag) => total + extrairValorPreco(ag.preco), 0)
   }
 
-  // Calcular total faturado no mês atual
+  // Calcular total faturado no mês atual (considerando data de reset)
   const calcularTotalMesAtual = (): number => {
     const hoje = new Date()
     const mesAtual = hoje.getMonth()
@@ -186,7 +194,13 @@ export default function Admin() {
         if (ag.status !== 'concluido') return false
         
         const dataAg = typeof ag.data === 'string' ? new Date(ag.data) : ag.data
-        return dataAg.getMonth() === mesAtual && dataAg.getFullYear() === anoAtual
+        const mesmoMes = dataAg.getMonth() === mesAtual && dataAg.getFullYear() === anoAtual
+        if (!mesmoMes) return false
+        
+        // Se há data de reset, considerar apenas após ela
+        if (dataResetCaixa && dataAg < dataResetCaixa) return false
+        
+        return true
       })
       .reduce((total, ag) => total + extrairValorPreco(ag.preco), 0)
   }
@@ -378,27 +392,29 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Botão para popular serviços */}
-          <div className="mt-8 pt-8 border-t border-wine-700">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-wine-100">Banco de Dados</h3>
-              <button
-                onClick={handlePopularServicos}
-                disabled={populandoServicos}
-                className="px-4 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-sm font-medium transition-colors border border-blue-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {populandoServicos ? 'Populando...' : 'Popular Serviços no Banco'}
-              </button>
-            </div>
-            <p className="text-wine-400 text-sm mb-4">
-              Use este botão para popular o banco de dados Firestore com os serviços iniciais. 
-              Serviços que já existem não serão duplicados.
-            </p>
-          </div>
-
           {/* Contagem de Caixa */}
           <div className="mt-8 pt-8 border-t border-wine-700">
-            <h3 className="text-xl font-semibold text-wine-100 mb-4">💰 Contagem de Caixa</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-wine-100">💰 Contagem de Caixa</h3>
+              <button
+                onClick={handleResetarCaixa}
+                className="px-4 py-2 rounded-lg bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-300 text-sm font-medium transition-colors border border-yellow-600/30"
+                title="Resetar contagem de caixa"
+              >
+                🔄 Resetar Caixa
+              </button>
+            </div>
+            {dataResetCaixa && (
+              <p className="text-wine-400 text-sm mb-4">
+                Caixa resetado em: {dataResetCaixa.toLocaleDateString('pt-BR', { 
+                  day: '2-digit', 
+                  month: '2-digit', 
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-green-900/30 rounded-lg p-6 border-2 border-green-700">
                 <p className="text-green-300 text-sm font-medium mb-2">Total Faturado</p>
@@ -406,7 +422,12 @@ export default function Admin() {
                   {formatarMoeda(calcularTotalFaturado())}
                 </p>
                 <p className="text-green-400 text-xs mt-2">
-                  {agendamentos.filter(a => a.status === 'concluido').length} serviço(s) concluído(s)
+                  {agendamentos.filter(ag => {
+                    if (ag.status !== 'concluido') return false
+                    if (!dataResetCaixa) return true
+                    const dataAg = typeof ag.data === 'string' ? new Date(ag.data) : ag.data
+                    return dataAg >= dataResetCaixa
+                  }).length} serviço(s) concluído(s){dataResetCaixa ? ' desde o reset' : ''}
                 </p>
               </div>
               <div className="bg-blue-900/30 rounded-lg p-6 border-2 border-blue-700">
@@ -419,8 +440,12 @@ export default function Admin() {
                     if (ag.status !== 'concluido') return false
                     const hoje = new Date()
                     const dataAg = typeof ag.data === 'string' ? new Date(ag.data) : ag.data
-                    return dataAg.getMonth() === hoje.getMonth() && 
-                           dataAg.getFullYear() === hoje.getFullYear()
+                    const mesmoMes = dataAg.getMonth() === hoje.getMonth() && 
+                                     dataAg.getFullYear() === hoje.getFullYear()
+                    if (!mesmoMes) return false
+                    // Se há data de reset, considerar apenas após ela
+                    if (dataResetCaixa && dataAg < dataResetCaixa) return false
+                    return true
                   }).length} serviço(s) este mês
                 </p>
               </div>
