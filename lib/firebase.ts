@@ -13,9 +13,9 @@ const firebaseConfig = {
 }
 
 // Inicializar Firebase
-let app: FirebaseApp
-let db: Firestore
-let auth: Auth
+let app: FirebaseApp | undefined
+let db: Firestore | undefined
+let auth: Auth | undefined
 
 // Função para inicializar Firebase
 const initializeFirebase = () => {
@@ -32,6 +32,14 @@ const initializeFirebase = () => {
 // Inicializar Firebase (tanto no cliente quanto no servidor)
 initializeFirebase()
 
+// Garantir que app, db e auth estão inicializados
+if (!app || !db || !auth) {
+  const initialized = initializeFirebase()
+  app = initialized.app
+  db = initialized.db
+  auth = initialized.auth
+}
+
 export { db, auth }
-export default app
+export default app!
 

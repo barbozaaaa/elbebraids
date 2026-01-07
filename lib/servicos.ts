@@ -80,6 +80,9 @@ export const todosServicos: Servico[] = [
 // Buscar todos os serviços do Firestore
 export async function buscarTodosServicos(): Promise<Servico[]> {
   try {
+    if (!db) {
+      throw new Error('Firestore não está inicializado')
+    }
     const q = query(
       collection(db, 'servicos'),
       orderBy('categoria', 'asc'),
@@ -112,6 +115,9 @@ export async function buscarTodosServicos(): Promise<Servico[]> {
 // Buscar serviço por ID no Firestore
 export async function buscarServicoPorId(id: string): Promise<Servico | null> {
   try {
+    if (!db) {
+      throw new Error('Firestore não está inicializado')
+    }
     const docRef = doc(db, 'servicos', id)
     const docSnap = await getDoc(docRef)
     
@@ -139,6 +145,9 @@ export async function buscarServicoPorId(id: string): Promise<Servico | null> {
 // Buscar serviço por slug no Firestore
 export async function buscarServicoPorSlug(slug: string): Promise<Servico | null> {
   try {
+    if (!db) {
+      throw new Error('Firestore não está inicializado')
+    }
     const q = query(collection(db, 'servicos'))
     const querySnapshot: QuerySnapshot<DocumentData> = await getDocs(q)
     
@@ -166,6 +175,9 @@ export async function buscarServicoPorSlug(slug: string): Promise<Servico | null
 // Criar novo serviço no Firestore
 export async function criarServico(servico: Omit<Servico, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
   try {
+    if (!db) {
+      throw new Error('Firestore não está inicializado')
+    }
     const docRef = await addDoc(collection(db, 'servicos'), {
       ...servico,
       ativo: servico.ativo !== undefined ? servico.ativo : true,
@@ -182,6 +194,9 @@ export async function criarServico(servico: Omit<Servico, 'id' | 'createdAt' | '
 // Atualizar serviço no Firestore
 export async function atualizarServico(id: string, servico: Partial<Omit<Servico, 'id' | 'createdAt'>>): Promise<void> {
   try {
+    if (!db) {
+      throw new Error('Firestore não está inicializado')
+    }
     const servicoRef = doc(db, 'servicos', id)
     await updateDoc(servicoRef, {
       ...servico,
@@ -196,6 +211,9 @@ export async function atualizarServico(id: string, servico: Partial<Omit<Servico
 // Deletar serviço do Firestore (soft delete marcando como inativo)
 export async function deletarServico(id: string): Promise<void> {
   try {
+    if (!db) {
+      throw new Error('Firestore não está inicializado')
+    }
     const servicoRef = doc(db, 'servicos', id)
     await updateDoc(servicoRef, {
       ativo: false,
@@ -210,6 +228,9 @@ export async function deletarServico(id: string): Promise<void> {
 // Deletar serviço permanentemente do Firestore
 export async function deletarServicoPermanentemente(id: string): Promise<void> {
   try {
+    if (!db) {
+      throw new Error('Firestore não está inicializado')
+    }
     const servicoRef = doc(db, 'servicos', id)
     await deleteDoc(servicoRef)
   } catch (error) {
@@ -221,6 +242,9 @@ export async function deletarServicoPermanentemente(id: string): Promise<void> {
 // Buscar serviços por categoria
 export async function buscarServicosPorCategoria(categoria: string): Promise<Servico[]> {
   try {
+    if (!db) {
+      throw new Error('Firestore não está inicializado')
+    }
     const q = query(
       collection(db, 'servicos'),
       where('categoria', '==', categoria),
@@ -252,6 +276,9 @@ export async function buscarServicosPorCategoria(categoria: string): Promise<Ser
 // Buscar serviços por subcategoria
 export async function buscarServicosPorSubcategoria(categoria: string, subcategoria: string): Promise<Servico[]> {
   try {
+    if (!db) {
+      throw new Error('Firestore não está inicializado')
+    }
     const q = query(
       collection(db, 'servicos'),
       where('categoria', '==', categoria),

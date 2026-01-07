@@ -84,6 +84,7 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
     } else {
       setHorariosOcupados(new Set())
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate])
 
   const carregarHorariosOcupados = async (data: string) => {

@@ -232,6 +232,9 @@ export const atualizarStatusAgendamento = async (
   status: Agendamento['status']
 ): Promise<void> => {
   try {
+    if (!db) {
+      throw new Error('Firestore não está inicializado')
+    }
     const agendamentoRef = doc(db, 'agendamentos', id)
     await updateDoc(agendamentoRef, {
       status: status || 'pendente',
@@ -245,6 +248,9 @@ export const atualizarStatusAgendamento = async (
 // Deletar agendamento
 export const deletarAgendamento = async (id: string): Promise<void> => {
   try {
+    if (!db) {
+      throw new Error('Firestore não está inicializado')
+    }
     const agendamentoRef = doc(db, 'agendamentos', id)
     await deleteDoc(agendamentoRef)
   } catch (error) {
