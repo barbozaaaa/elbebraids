@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Servico } from '@/lib/servicos'
-import { criarAgendamento } from '@/lib/agendamentos'
+import { criarAgendamento, buscarAgendamentos, verificarConflitoHorario } from '@/lib/agendamentos'
 
 interface AgendamentoFormServicoProps {
   servico: Servico
@@ -20,6 +20,9 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
 
   const [submitted, setSubmitted] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string>('')
+  const [erro, setErro] = useState<string | null>(null)
+  const [horariosOcupados, setHorariosOcupados] = useState<Set<string>>(new Set())
+  const [carregandoHorarios, setCarregandoHorarios] = useState(false)
 
   // Gerar os próximos 20 dias
   const generateNext20Days = () => {
@@ -67,19 +70,81 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
     })
   }
 
+  // Carregar horários ocupados quando uma data é selecionada
+  useEffect(() => {
+    if (selectedDate) {
+      carregarHorariosOcupados(selectedDate)
+      
+      // Atualizar horários ocupados a cada 30 segundos enquanto uma data estiver selecionada
+      const interval = setInterval(() => {
+        carregarHorariosOcupados(selectedDate)
+      }, 30000) // 30 segundos
+      
+      return () => clearInterval(interval)
+    } else {
+      setHorariosOcupados(new Set())
+    }
+  }, [selectedDate])
+
+  const carregarHorariosOcupados = async (data: string) => {
+    // Não mostrar loading se já estiver carregando (evita flicker)
+    if (!carregandoHorarios) {
+      setCarregandoHorarios(true)
+    }
+    
+    try {
+      const agendamentos = await buscarAgendamentos()
+      const ocupados = new Set<string>()
+      
+      // Filtrar agendamentos na mesma data que não estão cancelados
+      // IMPORTANTE: Verifica TODOS os agendamentos, independente do serviço
+      const dataSelecionada = new Date(data)
+      agendamentos.forEach(ag => {
+        const dataAg = typeof ag.data === 'string' ? new Date(ag.data) : ag.data
+        const mesmaData = dataAg.toDateString() === dataSelecionada.toDateString()
+        const naoCancelado = ag.status !== 'cancelado'
+        
+        // Adiciona o horário como ocupado se estiver na mesma data e não cancelado
+        // Isso garante que horários ocupados aparecem em TODOS os serviços
+        if (mesmaData && naoCancelado && ag.horario) {
+          ocupados.add(ag.horario.trim())
+        }
+      })
+      
+      setHorariosOcupados(ocupados)
+    } catch (error) {
+      console.error('Erro ao carregar horários ocupados:', error)
+    } finally {
+      setCarregandoHorarios(false)
+    }
+  }
+
   const handleDateSelect = (date: Date) => {
     const dateString = date.toISOString().split('T')[0]
     setSelectedDate(dateString)
     setFormData({
       ...formData,
       data: dateString,
+      horario: '', // Limpar horário quando mudar a data
     })
+    setErro(null) // Limpar erros anteriores
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErro(null)
     
     try {
+      // Verificar conflito novamente antes de criar (double-check)
+      const temConflito = await verificarConflitoHorario(formData.data, formData.horario)
+      
+      if (temConflito) {
+        setErro('Este horário já está ocupado. Por favor, escolha outro horário.')
+        // Recarregar horários ocupados
+        await carregarHorariosOcupados(formData.data)
+        return
+      }
+
       // Salvar agendamento no Firebase
       await criarAgendamento({
         nome: formData.nome,
@@ -107,10 +172,21 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
           observacoes: '',
         })
         setSelectedDate('')
+        setHorariosOcupados(new Set())
       }, 3000)
     } catch (error) {
       console.error('Erro ao enviar agendamento:', error)
-      alert('Erro ao enviar agendamento. Tente novamente.')
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+      
+      if (errorMessage.includes('ocupado') || errorMessage.includes('horário')) {
+        setErro(errorMessage)
+        // Recarregar horários ocupados
+        if (formData.data) {
+          await carregarHorariosOcupados(formData.data)
+        }
+      } else {
+        setErro('Erro ao enviar agendamento. Tente novamente.')
+      }
     }
   }
 
@@ -264,33 +340,78 @@ export default function AgendamentoFormServico({ servico }: AgendamentoFormServi
               {/* Seleção de Horário */}
               {selectedDate && (
                 <div>
-                  <h3 className="text-2xl font-semibold text-wine-50 mb-4">Escolha o Horário *</h3>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                    {timeSlots.map((time, index) => {
-                      const isSelected = formData.horario === time
-
-                      return (
-                        <button
-                          key={index}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, horario: time })}
-                          className={`p-3 rounded-lg border-2 transition-all duration-200 ${
-                            isSelected
-                              ? 'bg-wine-600 border-wine-500 text-wine-50'
-                              : 'bg-wine-800/50 border-wine-700 text-wine-200 hover:border-wine-600 hover:bg-wine-800/70'
-                          }`}
-                        >
-                          {time}
-                        </button>
-                      )
-                    })}
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-2xl font-semibold text-wine-50">Escolha o Horário *</h3>
+                    <button
+                      type="button"
+                      onClick={() => carregarHorariosOcupados(selectedDate)}
+                      disabled={carregandoHorarios}
+                      className="px-3 py-1.5 rounded-lg bg-wine-700 hover:bg-wine-600 text-wine-50 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Atualizar horários disponíveis"
+                    >
+                      {carregandoHorarios ? 'Atualizando...' : '🔄 Atualizar'}
+                    </button>
                   </div>
+                  {carregandoHorarios ? (
+                    <p className="text-wine-300 text-center py-4">Carregando horários disponíveis...</p>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                        {timeSlots.map((time, index) => {
+                          const isSelected = formData.horario === time
+                          const isOcupado = horariosOcupados.has(time.trim())
+
+                          return (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => {
+                                if (!isOcupado) {
+                                  setFormData({ ...formData, horario: time })
+                                  setErro(null)
+                                }
+                              }}
+                              disabled={isOcupado}
+                              className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                                isOcupado
+                                  ? 'bg-red-900/30 border-red-700 text-red-400 cursor-not-allowed opacity-60'
+                                  : isSelected
+                                  ? 'bg-wine-600 border-wine-500 text-wine-50'
+                                  : 'bg-wine-800/50 border-wine-700 text-wine-200 hover:border-wine-600 hover:bg-wine-800/70'
+                              }`}
+                              title={isOcupado ? 'Horário ocupado' : `Selecionar ${time}`}
+                            >
+                              {time}
+                              {isOcupado && <span className="block text-xs mt-1">Ocupado</span>}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {horariosOcupados.size > 0 && (
+                        <div className="mt-3 text-center">
+                          <p className="text-wine-400 text-sm">
+                            {horariosOcupados.size} horário(s) já ocupado(s) nesta data
+                          </p>
+                          <p className="text-wine-500 text-xs mt-1">
+                            (Horários ocupados aparecem em todos os serviços)
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
                   <input
                     type="hidden"
                     name="horario"
                     value={formData.horario}
                     required
                   />
+                </div>
+              )}
+
+              {/* Mensagem de Erro */}
+              {erro && (
+                <div className="bg-red-900/30 border-2 border-red-500 text-red-200 p-4 rounded-lg">
+                  <p className="font-semibold">{erro}</p>
                 </div>
               )}
 

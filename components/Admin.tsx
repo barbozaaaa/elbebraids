@@ -13,6 +13,7 @@ export default function Admin() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([])
   const [loading, setLoading] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
   const [filtroStatus, setFiltroStatus] = useState<'todos' | Agendamento['status']>('todos')
   const [busca, setBusca] = useState('')
   const [populandoServicos, setPopulandoServicos] = useState(false)
@@ -31,18 +32,30 @@ export default function Admin() {
 
   useEffect(() => {
     if (isAdmin) {
-      carregarAgendamentos()
+      // Pequeno delay para garantir que o componente está montado
+      const timer = setTimeout(() => {
+        carregarAgendamentos()
+      }, 100)
+      return () => clearTimeout(timer)
     }
   }, [isAdmin])
 
   const carregarAgendamentos = async () => {
     setLoading(true)
+    setErro(null)
     try {
+      console.log('Iniciando busca de agendamentos...')
       const dados = await buscarAgendamentos()
-      setAgendamentos(dados)
+      console.log('Agendamentos carregados:', dados)
+      setAgendamentos(dados || [])
+      if ((dados || []).length === 0) {
+        setErro('Nenhum agendamento encontrado no banco de dados.')
+      }
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error)
-      alert('Erro ao carregar agendamentos')
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+      setErro(`Erro ao carregar agendamentos: ${errorMessage}. Verifique o console para mais detalhes.`)
+      setAgendamentos([])
     } finally {
       setLoading(false)
     }
@@ -122,6 +135,70 @@ export default function Admin() {
     }
   }
 
+  // Função para extrair valor numérico do preço
+  const extrairValorPreco = (preco?: string): number => {
+    if (!preco) return 0
+    
+    // Remove tudo exceto números, vírgula e ponto
+    let valorLimpo = preco.replace(/[^\d,.-]/g, '')
+    
+    // Se não encontrou nada, retorna 0
+    if (!valorLimpo) return 0
+    
+    // Se tem vírgula e ponto, assume que vírgula é decimal (formato brasileiro)
+    if (valorLimpo.includes(',') && valorLimpo.includes('.')) {
+      // Remove pontos (milhares) e substitui vírgula por ponto
+      valorLimpo = valorLimpo.replace(/\./g, '').replace(',', '.')
+    } else if (valorLimpo.includes(',')) {
+      // Se só tem vírgula, pode ser decimal ou milhar
+      // Se tem mais de 3 dígitos antes da vírgula, é milhar
+      const partes = valorLimpo.split(',')
+      if (partes[0].length > 3) {
+        // É milhar, remove vírgula
+        valorLimpo = valorLimpo.replace(',', '')
+      } else {
+        // É decimal, substitui vírgula por ponto
+        valorLimpo = valorLimpo.replace(',', '.')
+      }
+    }
+    
+    // Tenta converter para número
+    const numero = parseFloat(valorLimpo)
+    
+    return isNaN(numero) ? 0 : numero
+  }
+
+  // Calcular total faturado (apenas agendamentos concluídos)
+  const calcularTotalFaturado = (): number => {
+    return agendamentos
+      .filter(ag => ag.status === 'concluido')
+      .reduce((total, ag) => total + extrairValorPreco(ag.preco), 0)
+  }
+
+  // Calcular total faturado no mês atual
+  const calcularTotalMesAtual = (): number => {
+    const hoje = new Date()
+    const mesAtual = hoje.getMonth()
+    const anoAtual = hoje.getFullYear()
+
+    return agendamentos
+      .filter(ag => {
+        if (ag.status !== 'concluido') return false
+        
+        const dataAg = typeof ag.data === 'string' ? new Date(ag.data) : ag.data
+        return dataAg.getMonth() === mesAtual && dataAg.getFullYear() === anoAtual
+      })
+      .reduce((total, ag) => total + extrairValorPreco(ag.preco), 0)
+  }
+
+  // Formatar valor monetário
+  const formatarMoeda = (valor: number): string => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(valor)
+  }
+
   if (!isAdmin) {
     return null
   }
@@ -132,15 +209,25 @@ export default function Admin() {
         <div className="p-6 border-b border-wine-700 sticky top-0 bg-wine-900 z-10">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-3xl font-bold text-wine-50">Painel Administrativo</h2>
-            <button
-              onClick={() => {
-                window.location.hash = ''
-                setIsAdmin(false)
-              }}
-              className="text-wine-300 hover:text-wine-50 transition-colors text-2xl"
-            >
-              ✕
-            </button>
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={carregarAgendamentos}
+                disabled={loading}
+                className="px-4 py-2 rounded-lg bg-wine-700 hover:bg-wine-600 text-wine-50 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Recarregar agendamentos"
+              >
+                🔄 {loading ? 'Carregando...' : 'Recarregar'}
+              </button>
+              <button
+                onClick={() => {
+                  window.location.hash = ''
+                  setIsAdmin(false)
+                }}
+                className="text-wine-300 hover:text-wine-50 transition-colors text-2xl"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           {/* Filtros e Busca */}
@@ -190,13 +277,35 @@ export default function Admin() {
         </div>
         
         <div className="p-6">
+          {erro && (
+            <div className="mb-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
+              <p className="text-red-300 mb-2">{erro}</p>
+              <button
+                onClick={carregarAgendamentos}
+                disabled={loading}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                Tentar Novamente
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="text-center py-12">
               <p className="text-wine-300">Carregando agendamentos...</p>
             </div>
+          ) : agendamentos.length === 0 && !erro ? (
+            <div className="text-center py-12">
+              <p className="text-wine-300 mb-4">Nenhum agendamento encontrado.</p>
+              <button
+                onClick={carregarAgendamentos}
+                className="px-4 py-2 rounded-lg bg-wine-600 hover:bg-wine-700 text-wine-50 transition-colors"
+              >
+                Tentar Novamente
+              </button>
+            </div>
           ) : agendamentosFiltrados.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-wine-300">Nenhum agendamento encontrado.</p>
+              <p className="text-wine-300">Nenhum agendamento encontrado com os filtros aplicados.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -285,6 +394,37 @@ export default function Admin() {
               Use este botão para popular o banco de dados Firestore com os serviços iniciais. 
               Serviços que já existem não serão duplicados.
             </p>
+          </div>
+
+          {/* Contagem de Caixa */}
+          <div className="mt-8 pt-8 border-t border-wine-700">
+            <h3 className="text-xl font-semibold text-wine-100 mb-4">💰 Contagem de Caixa</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-green-900/30 rounded-lg p-6 border-2 border-green-700">
+                <p className="text-green-300 text-sm font-medium mb-2">Total Faturado</p>
+                <p className="text-4xl font-bold text-green-100">
+                  {formatarMoeda(calcularTotalFaturado())}
+                </p>
+                <p className="text-green-400 text-xs mt-2">
+                  {agendamentos.filter(a => a.status === 'concluido').length} serviço(s) concluído(s)
+                </p>
+              </div>
+              <div className="bg-blue-900/30 rounded-lg p-6 border-2 border-blue-700">
+                <p className="text-blue-300 text-sm font-medium mb-2">Faturado este Mês</p>
+                <p className="text-4xl font-bold text-blue-100">
+                  {formatarMoeda(calcularTotalMesAtual())}
+                </p>
+                <p className="text-blue-400 text-xs mt-2">
+                  {agendamentos.filter(ag => {
+                    if (ag.status !== 'concluido') return false
+                    const hoje = new Date()
+                    const dataAg = typeof ag.data === 'string' ? new Date(ag.data) : ag.data
+                    return dataAg.getMonth() === hoje.getMonth() && 
+                           dataAg.getFullYear() === hoje.getFullYear()
+                  }).length} serviço(s) este mês
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Estatísticas */}
